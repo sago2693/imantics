@@ -718,7 +718,7 @@ class Polygons:
         """
         if not self._c_points:
             self._c_points = [
-                np.array(point).reshape(-1, 2).round().astype(int)
+                np.array(point).reshape(-1, 2).round().astype(int) #DEBUG
                 for point in self.polygons
             ]
 
