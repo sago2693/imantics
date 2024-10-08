@@ -397,13 +397,19 @@ class BBox:
     @classmethod
     def from_polygons(cls, polygons):
         """
-        Creates :class:`BBox` from polygons
+        Creates :class:`BBox` from polygons.
 
         :param polygons: object to generate bounding box
         :type polygons: :class:`Polygons`, list
-        :returns: :class:`BBox` repersentation
+        :returns: :class:`BBox` representation
         """
+        if len(polygons) < 2:
+            # Log a warning and return an empty or default bbox
+            print(f"Polygon has fewer than 2 points and will be skipped in bounding box.")
+            return cls.empty()
+
         return Polygons.create(polygons).bbox()
+
 
     @classmethod
     def create(cls, bbox, style=None):
@@ -431,25 +437,37 @@ class BBox:
     _c_mask = None
 
     def __init__(self, bbox, style=None):
+        # Ensure the bounding box has 4 values
+        assert len(bbox) == 4, "Bounding box must contain exactly 4 elements."
 
-        assert len(bbox) == 4
+        print("This is the print of box", bbox)
+
+        # Check for invalid bounding box values (inf, -inf, or NaN)
+        if any(np.isinf(coord) or np.isnan(coord) for coord in bbox):
+            raise ValueError(f"Invalid bounding box with infinite or NaN values: {bbox}")
 
         self.style = style if style else BBox.MIN_MAX
 
-        self._xmin = int(bbox[0])
-        self._ymin = int(bbox[1])
+        # Convert bounding box values to integers safely
+        try:
+            self._xmin = int(bbox[0])
+            self._ymin = int(bbox[1])
 
-        if self.style == self.MIN_MAX:
-            self._xmax = int(bbox[2])
-            self._ymax = int(bbox[3])
-            self.width = self._xmax - self._xmin
-            self.height = self._ymax - self._ymin
+            if self.style == self.MIN_MAX:
+                self._xmax = int(bbox[2])
+                self._ymax = int(bbox[3])
+                self.width = self._xmax - self._xmin
+                self.height = self._ymax - self._ymin
 
-        if self.style == self.WIDTH_HEIGHT:
-            self.width = int(bbox[2])
-            self.height = int(bbox[3])
-            self._xmax = self._xmin + self.width
-            self._ymax = self._ymin + self.height
+            elif self.style == self.WIDTH_HEIGHT:
+                self.width = int(bbox[2])
+                self.height = int(bbox[3])
+                self._xmax = self._xmin + self.width
+                self._ymax = self._ymin + self.height
+
+        except ValueError as e:
+            # Handle any conversion errors, raise a specific error
+            raise ValueError(f"Error converting bbox to integer values: {e}")
 
     def area(self):
         return self.width * self.height
@@ -716,11 +734,15 @@ class Polygons:
             ]
 
         """
+
         if not self._c_points:
-            self._c_points = [
-                np.array(point).reshape(-1, 2).round().astype(int) #DEBUG
-                for point in self.polygons
-            ]
+            self._c_points = []
+            
+            for point in self.polygons:
+                if len(point) < 2:
+                    print(f"Polygon with points {point} has fewer than 2 points and will be skipped.")
+                else:
+                    self._c_points.append(np.array(point).reshape(-1, 2).round().astype(int))
 
         return self._c_points
 
